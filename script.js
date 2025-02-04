@@ -1,16 +1,18 @@
 // blog class - จัดการข้อมูลบล็อก
 class Blog {
-  constructor(id, title, content) {
+  constructor(id, title, content, tags = []) {
     this.id = id;
     this.title = title;
     this.content = content;
+    this.tags = tags;
     this.createdDate = new Date();
     this.updatedDate = new Date();
   }
 
-  update(title, content) {
+  update(title, content, tags) {
     this.title = title;
     this.content = content;
+    this.tags = tags;
     this.updatedDate = new Date();
   }
 
@@ -28,27 +30,30 @@ class Blog {
 //BlogManager Class - รับผิดชอบจัดการ array ของบล็อก
 class BlogManager {
   constructor() {
-    this.blogs = [];
+    this.blogs = this.loadBlogs();
   }
 
-  addBlog(title, content) {
-    const blog = new Blog(Date.now(), title, content);
+  addBlog(title, content, tags) {
+    const blog = new Blog(Date.now(), title, content, tags);
     this.blogs.push(blog);
     this.sortBlogs();
+    this.saveBlogs();
     return blog;
   }
 
-  updateBlog(id, title, content) {
+  updateBlog(id, title, content, tags) {
     const blog = this.getBlog(id);
     if (blog) {
-      blog.update(title, content);
+      blog.update(title, content, tags);
       this.sortBlogs();
+      this.saveBlogs();
     }
     return blog;
   }
 
   deleteBlog(id) {
     this.blogs = this.blogs.filter((blog) => blog.id !== id);
+    this.saveBlogs();
   }
 
   getBlog(id) {
@@ -58,6 +63,15 @@ class BlogManager {
   sortBlogs() {
     this.blogs.sort((a, b) => b.updatedDate - a.updatedDate);
   }
+
+  saveBlogs() {
+    localStorage.setItem('blogs', JSON.stringify(this.blogs));
+  }
+
+  loadBlogs() {
+    const blogs = localStorage.getItem('blogs');
+    return blogs ? JSON.parse(blogs).map(blog => new Blog(blog.id, blog.title, blog.content, blog.tags)) : [];
+  }
 }
 
 //UI Class - รับผิดชอบจัดการ DOM และ Events
@@ -66,13 +80,14 @@ class BlogUI {
     this.blogManager = blogManager;
     this.initElements();
     this.initEventListeners();
-    this.render();
+    this.render(); // เรียกใช้ render เมื่อเริ่มต้นใช้งานโปรแกรม
   }
 
   initElements() {
     this.form = document.getElementById("blog-form");
     this.titleInput = document.getElementById("title");
     this.contentInput = document.getElementById("content");
+    this.tagsInput = document.getElementById("tags");
     this.editIdInput = document.getElementById("edit-id");
     this.formTitle = document.getElementById("form-title");
     this.cancelBtn = document.getElementById("cancel-btn");
@@ -95,12 +110,13 @@ class BlogUI {
   handleSubmit() {
     const title = this.titleInput.value.trim();
     const content = this.contentInput.value.trim();
+    const tags = this.tagsInput.value.split(',').map(tag => tag.trim());
     const editId = parseInt(this.editIdInput.value);
     if (title && content) {
       if (editId) {
-        this.blogManager.updateBlog(editId, title, content);
+        this.blogManager.updateBlog(editId, title, content, tags);
       } else {
-        this.blogManager.addBlog(title, content);
+        this.blogManager.addBlog(title, content, tags);
       }
       this.resetForm();
       this.render();
@@ -112,6 +128,7 @@ class BlogUI {
     if (blog) {
       this.titleInput.value = blog.title;
       this.contentInput.value = blog.content;
+      this.tagsInput.value = blog.tags.join(', ');
       this.editIdInput.value = blog.id;
       this.formTitle.textContent = "แก้ไขบล็อก";
       this.cancelBtn.classList.remove("hidden");
@@ -144,6 +161,9 @@ class BlogUI {
                 </div>
                 <div class="blog-content">
                     ${blog.content.replace(/\n/g, "<br>")}
+                </div>
+                <div class="blog-tags">
+                    แท็ก: ${blog.tags.join(', ')}
                 </div>
                 <div class="blog-actions">
                     <button class="btn-edit" onclick="blogUI.editBlog(${
